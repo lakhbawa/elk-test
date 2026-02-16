@@ -1,6 +1,6 @@
 services:
   postgres-primary:
-    image: bitnami/postgresql:16
+    image: bitnami/postgresql:latest
     container_name: postgres-primary
     ports:
       - "5432:5432"
@@ -16,7 +16,7 @@ services:
       - primary_data:/bitnami/postgresql
 
   postgres-replica:
-    image: bitnami/postgresql:16
+    image: bitnami/postgresql:latest
     container_name: postgres-replica
     depends_on:
       - postgres-primary
