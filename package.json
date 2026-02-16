@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "demo": "node src/demo.js",
+    "partition": "node src/partition-demo.js",
     "test": "node --test"
   },
   "dependencies": {

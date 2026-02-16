@@ -63,6 +63,24 @@ services:
       - POSTGRES_DB=appdb
     command: sh -c "npm install && npm run demo"
 
+  partition-app:
+    image: node:20-alpine
+    container_name: partition-demo-app
+    depends_on:
+      - postgres-primary
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - PRIMARY_HOST=postgres-primary
+      - PRIMARY_PORT=5432
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app_password
+      - POSTGRES_DB=appdb
+    command: sh -c "npm install && npm run partition"
+    profiles:
+      - partition
+
 volumes:
   primary_data:
   replica_data:
