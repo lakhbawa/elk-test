@@ -81,6 +81,59 @@ services:
     profiles:
       - partition
 
+  postgres-shard0:
+    image: bitnami/postgresql:latest
+    container_name: postgres-shard0
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=postgres
+      - POSTGRESQL_USERNAME=app
+      - POSTGRESQL_PASSWORD=app_password
+      - POSTGRESQL_DATABASE=appdb
+    volumes:
+      - shard0_data:/bitnami/postgresql
+    profiles:
+      - sharding
+
+  postgres-shard1:
+    image: bitnami/postgresql:latest
+    container_name: postgres-shard1
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=postgres
+      - POSTGRESQL_USERNAME=app
+      - POSTGRESQL_PASSWORD=app_password
+      - POSTGRESQL_DATABASE=appdb
+    volumes:
+      - shard1_data:/bitnami/postgresql
+    profiles:
+      - sharding
+
+  shard-app:
+    image: node:20-alpine
+    container_name: shard-demo-app
+    depends_on:
+      - postgres-shard0
+      - postgres-shard1
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - SHARD0_HOST=postgres-shard0
+      - SHARD0_PORT=5432
+      - SHARD1_HOST=postgres-shard1
+      - SHARD1_PORT=5432
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app_password
+      - POSTGRES_DB=appdb
+    command: sh -c "npm install && npm run shard"
+    profiles:
+      - sharding
+
 volumes:
   primary_data:
   replica_data:
+  shard0_data:
+  shard1_data:
