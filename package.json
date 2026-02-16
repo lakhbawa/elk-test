@@ -1,0 +1,13 @@
+{
+  "name": "postgres-replica-demo",
+  "version": "1.0.0",
+  "description": "Minimal Node.js demo for PostgreSQL primary/replica reads and writes",
+  "type": "module",
+  "scripts": {
+    "demo": "node src/demo.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
+}
