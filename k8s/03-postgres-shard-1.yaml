@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PostgreSQL – Shard 1
+# Stores users whose ID is ODD  (user_id % 2 == 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-shard-1-pvc
+  namespace: sharding-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 512Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-shard-1
+  namespace: sharding-demo
+  labels:
+    app: postgres
+    shard: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      shard: "1"
+  template:
+    metadata:
+      labels:
+        app: postgres
+        shard: "1"
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: sharddb
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "sharddb"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "sharddb"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-shard-1-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-1
+  namespace: sharding-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+    shard: "1"
+  ports:
+    - port: 5432
+      targetPort: 5432

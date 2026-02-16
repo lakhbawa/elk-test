@@ -1,0 +1,74 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Node.js App – Deployment
+# ─────────────────────────────────────────────────────────────────────────────
+# This is the sharding router: it receives HTTP requests, computes which
+# PostgreSQL shard to use, and forwards the query there.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sharding-app
+  namespace: sharding-demo
+  labels:
+    app: sharding-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sharding-app
+  template:
+    metadata:
+      labels:
+        app: sharding-app
+    spec:
+      containers:
+        - name: app
+          image: k8s-sharding-demo:latest
+
+          # imagePullPolicy: Never  →  use the locally-built Docker image.
+          # Because Docker Desktop's Kubernetes shares the same Docker daemon,
+          # any image you build with "docker build" is instantly available here.
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 3000
+
+          env:
+            - name: PORT
+              value: "3000"
+
+            # These match the Kubernetes Service names of the two postgres pods.
+            # Kubernetes DNS resolves "postgres-shard-0" to the ClusterIP of
+            # the postgres-shard-0 Service automatically.
+            - name: SHARD_0_HOST
+              value: "postgres-shard-0"
+            - name: SHARD_1_HOST
+              value: "postgres-shard-1"
+
+            - name: DB_NAME
+              value: "sharddb"
+            - name: DB_USER
+              value: "postgres"
+
+            # Injected from the Secret – not visible in plain text
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+
+          # readinessProbe: only send traffic to this pod when /health returns 200
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          # livenessProbe: restart the pod if it becomes unresponsive
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15

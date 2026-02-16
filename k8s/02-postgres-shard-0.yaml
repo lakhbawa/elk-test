@@ -1,0 +1,101 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PostgreSQL – Shard 0
+# Stores users whose ID is EVEN  (user_id % 2 == 0)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── PersistentVolumeClaim ─────────────────────────────────────────────────────
+# A PVC is a request for storage.  Kubernetes provisions a PersistentVolume
+# (actual disk) to back it.  On Docker Desktop the "hostpath" storage class
+# maps this to a directory on your laptop, so data survives pod restarts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-shard-0-pvc
+  namespace: sharding-demo
+spec:
+  accessModes:
+    - ReadWriteOnce   # only one node can mount it at a time (fine for one replica)
+  resources:
+    requests:
+      storage: 512Mi
+
+---
+# ── Deployment ────────────────────────────────────────────────────────────────
+# A Deployment tells Kubernetes "keep exactly N copies of this pod running".
+# If the pod crashes, Kubernetes recreates it automatically.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-shard-0
+  namespace: sharding-demo
+  labels:
+    app: postgres
+    shard: "0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      shard: "0"
+  template:
+    metadata:
+      labels:
+        app: postgres
+        shard: "0"
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: sharddb
+            - name: POSTGRES_USER
+              value: postgres
+            # Pull the password from the Secret – never hard-code passwords!
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+          # readinessProbe: Kubernetes will not send traffic until pg_isready
+          # returns success.  This prevents routing to a pod that is still
+          # starting up.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "sharddb"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "sharddb"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-shard-0-pvc
+
+---
+# ── Service ───────────────────────────────────────────────────────────────────
+# A ClusterIP Service gives the pod a stable DNS name and virtual IP inside
+# the cluster.  Other pods reach shard-0 simply by hostname "postgres-shard-0".
+# Kubernetes DNS resolves that name → the Service IP → the pod IP.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-shard-0
+  namespace: sharding-demo
+spec:
+  type: ClusterIP   # internal-only; not exposed outside the cluster
+  selector:
+    app: postgres
+    shard: "0"
+  ports:
+    - port: 5432
+      targetPort: 5432

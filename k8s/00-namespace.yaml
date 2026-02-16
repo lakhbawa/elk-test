@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Namespace
+# ─────────────────────────────────────────────────────────────────────────────
+# A Namespace isolates our demo resources from anything else running in the
+# cluster.  All subsequent objects use the "sharding-demo" namespace.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sharding-demo
+  labels:
+    app: sharding-demo
