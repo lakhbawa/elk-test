@@ -12,7 +12,7 @@ A minimal Node.js project demonstrating:
 
 - Node.js 20
 - `pg` driver
-- PostgreSQL 16 (**official `postgres:16` image**)
+- PostgreSQL 16 (Bitnami images)
 - Docker Compose
 - Adminer
 
@@ -21,8 +21,6 @@ A minimal Node.js project demonstrating:
 - `src/demo.js`: writes a row on primary, then polls replica until row appears.
 - `src/config.js`: connection config from env vars.
 - `docker-compose.yml`: primary + replica + adminer + app.
-- `docker/primary-init/01-replication-user.sql`: creates replication user.
-- `docker/replica/replica-entrypoint.sh`: bootstraps replica from primary with `pg_basebackup`.
 
 ## Run with Docker Compose
 
