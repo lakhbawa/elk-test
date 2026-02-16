@@ -1,39 +1,46 @@
 services:
   postgres-primary:
-    image: bitnami/postgresql:16
+    image: postgres:16
     container_name: postgres-primary
     ports:
       - "5432:5432"
     environment:
-      - POSTGRESQL_POSTGRES_PASSWORD=postgres
-      - POSTGRESQL_USERNAME=app
-      - POSTGRESQL_PASSWORD=app_password
-      - POSTGRESQL_DATABASE=appdb
-      - POSTGRESQL_REPLICATION_MODE=master
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app_password
+      - POSTGRES_DB=appdb
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
     volumes:
-      - primary_data:/bitnami/postgresql
+      - primary_data:/var/lib/postgresql/data
+      - ./docker/primary-init:/docker-entrypoint-initdb.d:ro
 
   postgres-replica:
-    image: bitnami/postgresql:16
+    image: postgres:16
     container_name: postgres-replica
     depends_on:
       - postgres-primary
     ports:
       - "5433:5432"
     environment:
-      - POSTGRESQL_POSTGRES_PASSWORD=postgres
-      - POSTGRESQL_USERNAME=app
-      - POSTGRESQL_PASSWORD=app_password
-      - POSTGRESQL_DATABASE=appdb
-      - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-      - POSTGRESQL_MASTER_HOST=postgres-primary
-      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app_password
+      - POSTGRES_DB=appdb
+      - PRIMARY_HOST=postgres-primary
+      - PRIMARY_PORT=5432
+      - REPLICATION_USER=repl_user
+      - REPLICATION_PASSWORD=repl_password
+    entrypoint:
+      - /bin/bash
+      - /replica-entrypoint.sh
     volumes:
-      - replica_data:/bitnami/postgresql
+      - replica_data:/var/lib/postgresql/data
+      - ./docker/replica/replica-entrypoint.sh:/replica-entrypoint.sh:ro
 
   adminer:
     image: adminer:4
